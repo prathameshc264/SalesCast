@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SalesCast Pro 📈 — AI Sales Forecasting & Intelligence Dashboard</title>
+  <meta name="description" content="AI-powered sales forecasting, IQR anomaly detection, receipt OCR scanning, and SHAP explainability dashboard built for high-speed deployment on Vercel.">
+  
+  <!-- Favicon -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📈</text></svg>">
+  
+  <!-- OpenGraph -->
+  <meta property="og:title" content="SalesCast Pro — AI Sales Forecasting Dashboard">
+  <meta property="og:description" content="Real-time sales analytics, Prophet-style forecasting, anomaly alerts, and receipt OCR.">
+  <meta property="og:type" content="website">
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Plotly.js & PapaParse via Fast CDN -->
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+  <!-- Design System Stylesheet -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Sticky Header -->
+  <header class="app-header">
+    <div class="brand-section">
+      <div class="logo-icon">📈</div>
+      <div class="brand-title">
+        SalesCast Pro
+        <span class="badge badge-vercel">Vercel Ready</span>
+        <span class="badge badge-live"><span class="live-dot"></span> Live Engine</span>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button id="btn-generate-sample" class="btn btn-secondary btn-sm" title="Populate 365 days of realistic data">
+        🎲 Generate Sample Data
+      </button>
+      <button id="btn-upload-header" class="btn btn-primary btn-sm">
+        📥 Upload CSV
+      </button>
+      <button id="btn-scan-ocr-header" class="btn btn-secondary btn-sm">
+        🧾 Scan Receipt
+      </button>
+      <button id="btn-clear-data" class="btn btn-danger btn-sm" title="Clear loaded data">
+        🗑️ Clear
+      </button>
+    </div>
+  </header>
+
+  <div class="app-container">
+    <!-- Collapsible Sidebar Controls -->
+    <aside class="app-sidebar">
+      <!-- Active Data Summary -->
+      <div>
+        <div class="sidebar-section-title">Data Source Status</div>
+        <div class="status-card">
+          <div class="status-row">
+            <span class="status-label">Active Records:</span>
+            <span class="status-val" id="status-row-count">0 rows</span>
+          </div>
+          <div class="status-row">
+            <span class="status-label">Date Range:</span>
+            <span class="status-val" id="status-date-span">Loading…</span>
+          </div>
+          <div class="status-row">
+            <span class="status-label">Aggregate Revenue:</span>
+            <span class="status-val" id="status-total-rev" style="color:var(--primary);">₹0</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- File Upload Dropzone -->
+      <div>
+        <div class="sidebar-section-title">Import Data</div>
+        <div class="dropzone-container" id="dropzone">
+          <input type="file" id="file-input" class="hidden-file-input" accept=".csv, .tsv, .txt">
+          <div class="dropzone-icon">📁</div>
+          <div class="dropzone-text">Drop sales CSV here</div>
+          <div class="dropzone-subtext">or click to browse files</div>
+        </div>
+      </div>
+
+      <!-- Interactive Filters -->
+      <div>
+        <div class="sidebar-section-title">Analytics Filters</div>
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <!-- Date Presets -->
+          <div class="filter-group">
+            <label class="filter-label" for="filter-preset">Timeline Horizon</label>
+            <select id="filter-preset" class="select-input">
+              <option value="all">Full Dataset (All Time)</option>
+              <option value="7d">Last 7 Days</option>
+              <option value="30d">Last 30 Days</option>
+              <option value="90d">Last 90 Days</option>
+              <option value="ytd">Year to Date (YTD)</option>
+            </select>
+          </div>
+
+          <!-- Custom Dates -->
+          <div class="filter-group">
+            <label class="filter-label">Custom Date Boundaries</label>
+            <div class="date-row">
+              <input type="date" id="filter-start-date" class="date-input" title="Start date">
+              <input type="date" id="filter-end-date" class="date-input" title="End date">
+            </div>
+          </div>
+
+          <!-- Category Filter -->
+          <div class="filter-group">
+            <label class="filter-label" for="filter-category">Product Category</label>
+            <select id="filter-category" class="select-input">
+              <option value="all">All Categories</option>
+            </select>
+          </div>
+
+          <!-- Product Filter -->
+          <div class="filter-group">
+            <label class="filter-label" for="filter-product">Individual Product</label>
+            <select id="filter-product" class="select-input">
+              <option value="all">All Products</option>
+            </select>
+          </div>
+
+          <button id="btn-reset-filters" class="btn btn-secondary btn-sm" style="margin-top:4px;">
+            ↺ Reset Filter Selections
+          </button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="app-main">
+      <!-- Navigation Tabs -->
+      <nav class="tabs-nav">
+        <button class="tab-btn active" data-tab="dashboard">
+          📊 Dashboard
+        </button>
+        <button class="tab-btn" data-tab="forecast">
+          📈 Forecast
+        </button>
+        <button class="tab-btn" data-tab="anomalies">
+          🚨 Anomalies
+        </button>
+        <button class="tab-btn" data-tab="ocr">
+          🧾 Bill Upload (OCR)
+        </button>
+        <button class="tab-btn" data-tab="explainability">
+          🧠 Explainability
+        </button>
+        <button class="tab-btn" data-tab="recommendations">
+          💡 Recommendations
+        </button>
+      </nav>
+
+      <!-- Tab Content Area -->
+      <div class="tab-content-container">
+
+        <!-- Empty State Container -->
+        <div id="empty-state-container" class="empty-state" style="display:none;">
+          <div class="empty-icon">📊</div>
+          <h2 class="empty-title">SalesCast Pro is Ready</h2>
+          <p class="empty-desc">
+            Upload your store CSV dataset or generate 365 days of realistic sample data
+            to unlock dashboards, Prophet-style forecasting, IQR anomaly detection, and business recommendations.
+          </p>
+          <button class="btn btn-primary" onclick="document.getElementById('btn-generate-sample').click()">
+            🎲 Generate 365 Days Sample Data
+          </button>
+        </div>
+
+        <!-- Main Dashboard View Container -->
+        <div id="main-dashboard-content">
+
+          <!-- TAB 1: DASHBOARD -->
+          <section id="tab-dashboard" class="tab-pane active">
+            <!-- Top KPI Cards -->
+            <div class="kpi-grid">
+              <div class="kpi-card" style="--card-accent: var(--primary);">
+                <div class="kpi-label">Total Revenue</div>
+                <div class="kpi-value" id="kpi-revenue">₹0</div>
+                <div class="kpi-sub">
+                  <span id="kpi-growth" class="kpi-growth-positive">+0.0% vs prior</span>
+                </div>
+              </div>
+
+              <div class="kpi-card" style="--card-accent: var(--green);">
+                <div class="kpi-label">Operating Profit</div>
+                <div class="kpi-value" id="kpi-profit">₹0</div>
+                <div class="kpi-sub" id="kpi-margin">0% gross margin</div>
+              </div>
+
+              <div class="kpi-card" style="--card-accent: var(--cyan);">
+                <div class="kpi-label">Average Daily Revenue</div>
+                <div class="kpi-value" id="kpi-avg-daily">₹0</div>
+                <div class="kpi-sub" id="kpi-days">Across 0 days</div>
+              </div>
+
+              <div class="kpi-card" style="--card-accent: var(--purple);">
+                <div class="kpi-label">Units / Transactions</div>
+                <div class="kpi-value" id="kpi-quantity">0</div>
+                <div class="kpi-sub" id="kpi-transactions">0 total orders</div>
+              </div>
+            </div>
+
+            <!-- Main Revenue Trend Card -->
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <h3 class="card-title">Revenue & Profit Performance Trend</h3>
+                  <div class="card-desc">Interactive timeline tracking daily sales and operating profitability</div>
+                </div>
+                <div style="display:flex;gap:6px;">
+                  <button id="btn-trend-daily" class="btn btn-sm btn-primary" data-mode="daily">Daily</button>
+                  <button id="btn-trend-rolling" class="btn btn-sm btn-secondary" data-mode="rolling7">7-Day Moving Avg</button>
+                  <button id="btn-trend-cumulative" class="btn btn-sm btn-secondary" data-mode="cumulative">Cumulative</button>
+                </div>
+              </div>
+              <div id="chart-revenue-trend" class="chart-wrapper"></div>
+            </div>
+
+            <!-- Breakdown Grid Row 1 -->
+            <div class="grid-2col">
+              <div class="card">
+                <div class="card-header">
+                  <h3 class="card-title">Top Products by Revenue</h3>
+                </div>
+                <div id="chart-top-products" class="chart-wrapper"></div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <h3 class="card-title">Category Revenue Distribution</h3>
+                </div>
+                <div id="chart-category-dist" class="chart-wrapper"></div>
+              </div>
+            </div>
+
+            <!-- Breakdown Grid Row 2 -->
+            <div class="grid-2col">
+              <div class="card">
+                <div class="card-header">
+                  <h3 class="card-title">Average Sales by Day of Week</h3>
+                </div>
+                <div id="chart-day-of-week" class="chart-wrapper"></div>
+              </div>
+
+              <div class="card">
+                <div class="card-header">
+                  <h3 class="card-title">Monthly Revenue Performance</h3>
+                </div>
+                <div id="chart-monthly-comparison" class="chart-wrapper"></div>
+              </div>
+            </div>
+
+            <!-- Executive Auto-Summary Box -->
+            <div class="summary-box">
+              <div style="font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+                <span>✨ Executive Insights & Summary</span>
+              </div>
+              <div id="summary-text">Loading insights…</div>
+            </div>
+
+            <!-- Raw Data Table Explorer -->
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <h3 class="card-title">Cleaned Sales Dataset Explorer</h3>
+                  <div class="card-desc">Searchable view of deduplicated and normalized sales records</div>
+                </div>
+                <div style="display:flex;gap:10px;align-items:center;">
+                  <input type="text" id="table-search-input" class="text-input" placeholder="Search product, category, date…" style="width:240px;">
+                  <button id="btn-export-csv" class="btn btn-sm btn-secondary">
+                    ⬇️ Export CSV
+                  </button>
+                </div>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Sales Revenue</th>
+                      <th>Gross Profit</th>
+                      <th>COGS / Cost</th>
+                      <th>Quantity</th>
+                      <th>Product</th>
+                      <th>Category</th>
+                    </tr>
+                  </thead>
+                  <tbody id="data-table-body">
+                    <!-- Populated via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- TAB 2: FORECAST -->
+          <section id="tab-forecast" class="tab-pane">
+            <div class="forecast-toolbar">
+              <div class="slider-group">
+                <span class="slider-label">Forecast Horizon:</span>
+                <input type="range" id="forecast-slider" class="range-slider" min="1" max="30" value="7">
+                <span id="forecast-slider-val" class="slider-val-badge">7d</span>
+              </div>
+              <button id="btn-run-forecast" class="btn btn-primary">
+                🚀 Re-compute Forecast
+              </button>
+            </div>
+
+            <!-- Forecast KPIs -->
+            <div class="kpi-grid">
+              <div class="kpi-card" style="--card-accent: var(--cyan);">
+                <div class="kpi-label">Next-Day Prediction</div>
+                <div class="kpi-value" id="kpi-next-day">₹0</div>
+                <div class="kpi-sub">Expected revenue for tomorrow</div>
+              </div>
+
+              <div class="kpi-card" style="--card-accent: var(--orange);">
+                <div class="kpi-label">Lower Confidence Bound (95%)</div>
+                <div class="kpi-value" id="kpi-lower-bound">₹0</div>
+                <div class="kpi-sub">Conservative floor scenario</div>
+              </div>
+
+              <div class="kpi-card" style="--card-accent: var(--green);">
+                <div class="kpi-label">Upper Confidence Bound (95%)</div>
+                <div class="kpi-value" id="kpi-upper-bound">₹0</div>
+                <div class="kpi-sub">Optimistic ceiling scenario</div>
+              </div>
+            </div>
+
+            <!-- Forecast Chart -->
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <h3 class="card-title">Prophet-Style Additive Sales Forecast</h3>
+                  <div class="card-desc">Additive decomposition combining trend momentum, weekly Fourier cycles, and 95% confidence corridor</div>
+                </div>
+              </div>
+              <div id="chart-forecast-main" class="chart-wrapper" style="min-height:440px;"></div>
+            </div>
+
+            <!-- Projected Schedule Table -->
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Projected Daily Revenue Schedule</h3>
+              </div>
+              <div class="table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Target Date</th>
+                      <th>Expected Sales</th>
+                      <th>Floor (95% CI)</th>
+                      <th>Ceiling (95% CI)</th>
+                      <th>Timeline Offset</th>
+                    </tr>
+                  </thead>
+                  <tbody id="forecast-table-body">
+                    <!-- Populated via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+
+          <!-- TAB 3: ANOMALIES -->
+          <section id="tab-anomalies" class="tab-pane">
+            <div class="forecast-toolbar">
+              <div class="slider-group">
+                <span class="slider-label">IQR Sensitivity Multiplier:</span>
+                <input type="range" id="anomaly-threshold" class="range-slider" min="1.0" max="3.0" step="0.1" value="1.5">
+                <span id="anomaly-threshold-val" class="slider-val-badge">1.5x</span>
+              </div>
+              <div style="color:var(--text-muted);font-size:0.8rem;">
+                Standard Tukey IQR: 1.5x = Moderate outlier threshold, 3.0x = Extreme outliers
+              </div>
+            </div>
+
+            <!-- Anomaly KPIs -->
+            <div class="kpi-grid">
+              <div class="kpi-card" style="--card-accent: var(--primary);">
+                <div class="kpi-label">Total Outliers Identified</div>
+                <div class="kpi-value" id="kpi-anomaly-count">0</div>
+                <div class="kpi-sub">Statistical deviations from baseline</div>
+              </div>
+
+              <div class="kpi-card" style="--card-accent: var(--red);">
+                <div class="kpi-label">Revenue Spikes (+)</div>
+                <div class="kpi-value" id="kpi-spike-count" style="color:var(--red);">0</div>
+                <div class="kpi-sub">Abnormal positive surges</div>
+              </div>
+
+              <div class="kpi-card" style="--card-accent: var(--orange);">
+                <div class="kpi-label">Revenue Drops (-)</div>
+                <div class="kpi-value" id="kpi-drop-count" style="color:var(--orange);">0</div>
+                <div class="kpi-sub">Abnormal revenue dips</div>
+              </div>
+            </div>
+
+            <!-- Anomaly Chart -->
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <h3 class="card-title">Anomaly Detection Timeline</h3>
+                  <div class="card-desc">IQR upper and lower envelopes flagging volume spikes and unexpected demand drops</div>
+                </div>
+              </div>
+              <div id="chart-anomalies-main" class="chart-wrapper" style="min-height:420px;"></div>
+            </div>
+
+            <!-- Diagnostics List -->
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Automated Anomaly Explanations</h3>
+              </div>
+              <div id="anomaly-list-container">
+                <!-- Populated via JS -->
+              </div>
+            </div>
+          </section>
+
+          <!-- TAB 4: BILL OCR -->
+          <section id="tab-ocr" class="tab-pane">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <h3 class="card-title">Receipt & Bill OCR Digitization</h3>
+                  <div class="card-desc">Scan physical store receipts or paper bills to extract date, line items, and totals into active sales data</div>
+                </div>
+                <button id="btn-use-sample-receipt" class="btn btn-secondary btn-sm">
+                  ⚡ Try Included Sample Receipt
+                </button>
+              </div>
+
+              <div class="ocr-split">
+                <!-- Left: Upload & Preview -->
+                <div>
+                  <div class="dropzone-container" id="ocr-dropzone" style="margin-bottom:16px;">
+                    <input type="file" id="ocr-file-input" class="hidden-file-input" accept="image/*">
+                    <div class="dropzone-icon">📷</div>
+                    <div class="dropzone-text">Upload receipt photo</div>
+                    <div class="dropzone-subtext">PNG, JPG, or WebP</div>
+                  </div>
+
+                  <div class="ocr-preview-box">
+                    <img id="ocr-preview-img" class="ocr-img" src="assets/sample_receipt.jpg" alt="Receipt preview">
+                  </div>
+
+                  <!-- Progress Bar -->
+                  <div id="ocr-progress-container" style="display:none;margin-top:14px;">
+                    <div style="display:flex;justify-content:space-between;font-size:0.78rem;color:var(--text-muted);margin-bottom:4px;">
+                      <span id="ocr-progress-text">Processing OCR neural model…</span>
+                    </div>
+                    <div style="width:100%;height:6px;background:var(--border);border-radius:var(--radius-full);overflow:hidden;">
+                      <div id="ocr-progress-bar" style="width:10%;height:100%;background:var(--primary);transition:width 0.2s ease;"></div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Right: Parsed Results -->
+                <div>
+                  <div id="ocr-results-card" style="display:block;">
+                    <div style="background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px;margin-bottom:16px;">
+                      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                        <h4 style="font-size:1.1rem;color:var(--text-main);" id="ocr-merchant-name">TechZone Electronics</h4>
+                        <span class="badge badge-live">Verified Structure</span>
+                      </div>
+
+                      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+                        <div>
+                          <label class="filter-label">Detected Bill Date</label>
+                          <input type="date" id="ocr-receipt-date" class="date-input" value="2024-10-15">
+                        </div>
+                        <div>
+                          <label class="filter-label">Detected Total Amount</label>
+                          <div id="ocr-receipt-total" style="font-size:1.25rem;font-weight:700;color:var(--green);margin-top:4px;">₹12,720</div>
+                        </div>
+                      </div>
+
+                      <div style="margin-bottom:14px;">
+                        <div class="sidebar-section-title" style="margin-bottom:6px;">Extracted Line Items</div>
+                        <div class="table-responsive">
+                          <table class="ocr-table">
+                            <thead>
+                              <tr>
+                                <th>Item Name</th>
+                                <th>Category</th>
+                                <th>Price (₹)</th>
+                                <th>Action</th>
+                              </tr>
+                            </thead>
+                            <tbody id="ocr-items-table-body">
+                              <tr>
+                                <td><input type="text" class="text-input" value="Wireless Mouse" style="padding:4px 8px;"></td>
+                                <td><span class="badge" style="background:#21262D;color:#8B949E;">Accessories</span></td>
+                                <td><input type="number" class="text-input" value="2080" style="padding:4px 8px;width:110px;"></td>
+                                <td><button class="btn btn-sm btn-ghost" style="color:#F85149;">✕</button></td>
+                              </tr>
+                              <tr>
+                                <td><input type="text" class="text-input" value="USB-C Cable" style="padding:4px 8px;"></td>
+                                <td><span class="badge" style="background:#21262D;color:#8B949E;">Accessories</span></td>
+                                <td><input type="number" class="text-input" value="1040" style="padding:4px 8px;width:110px;"></td>
+                                <td><button class="btn btn-sm btn-ghost" style="color:#F85149;">✕</button></td>
+                              </tr>
+                              <tr>
+                                <td><input type="text" class="text-input" value="Mechanical Keyboard" style="padding:4px 8px;"></td>
+                                <td><span class="badge" style="background:#21262D;color:#8B949E;">Accessories</span></td>
+                                <td><input type="number" class="text-input" value="7410" style="padding:4px 8px;width:110px;"></td>
+                                <td><button class="btn btn-sm btn-ghost" style="color:#F85149;">✕</button></td>
+                              </tr>
+                              <tr>
+                                <td><input type="text" class="text-input" value="HDMI Adapter" style="padding:4px 8px;"></td>
+                                <td><span class="badge" style="background:#21262D;color:#8B949E;">Accessories</span></td>
+                                <td><input type="number" class="text-input" value="1250" style="padding:4px 8px;width:110px;"></td>
+                                <td><button class="btn btn-sm btn-ghost" style="color:#F85149;">✕</button></td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+
+                      <button id="btn-add-ocr-to-dataset" class="btn btn-success" style="width:100%;justify-content:center;">
+                        📥 Add Extracted Bill Items to Active Sales Dataset
+                      </button>
+                    </div>
+
+                    <!-- Raw text expander -->
+                    <details style="background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 14px;">
+                      <summary style="cursor:pointer;color:var(--text-muted);font-size:0.8rem;font-weight:600;">View Raw OCR Detected Text</summary>
+                      <pre id="ocr-raw-text" style="font-family:monospace;font-size:0.75rem;color:var(--text-muted);margin-top:10px;white-space:pre-wrap;background:#000;padding:12px;border-radius:var(--radius-sm);max-height:160px;overflow-y:auto;">
+TECHZONE ELECTRONICS
+123 Gadget Street, Silicon Valley, CA 94025
+DATE: 2024-10-15 TIME: 14:32:01
+1 WIRELESS MOUSE $24.99
+2 USB-C CABLE $12.50
+1 MECHANICAL KEYBOARD $89.00
+1 HDMI ADAPTER $15.00
+SUBTOTAL $141.49
+TOTAL $152.81
+                      </pre>
+                    </details>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- TAB 5: EXPLAINABILITY -->
+          <section id="tab-explainability" class="tab-pane">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <h3 class="card-title">What Drives Your Sales? (SHAP-Style Feature Importance)</h3>
+                  <div class="card-desc">Machine learning proxy model evaluating 12 temporal, momentum, and lag features</div>
+                </div>
+              </div>
+              <div id="chart-feature-importance" class="chart-wrapper" style="min-height:440px;"></div>
+            </div>
+
+            <div class="summary-box">
+              <div style="font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px;">
+                <span>🧠 Key Driver Narrative Analysis</span>
+              </div>
+              <div id="explain-drivers-text">
+                Loading explainability drivers…
+              </div>
+            </div>
+
+            <!-- Methodology Card -->
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Feature Engineering Methodology</h3>
+              </div>
+              <p style="font-size:0.88rem;color:var(--text-muted);line-height:1.6;">
+                SalesCast Pro engineers 12 distinct time-series features across three critical dimensions:
+                <br>• <b>Lag Signals:</b> Yesterday’s revenue (Lag 1) and exact day last week (Lag 7) capturing immediate auto-correlation.
+                <br>• <b>Momentum Envelopes:</b> 7-day and 30-day moving averages alongside volatility dispersion (rolling std).
+                <br>• <b>Calendar Seasonality:</b> Day of week, weekend flags, week of year, day of month, and multi-year trend time.
+              </p>
+            </div>
+          </section>
+
+          <!-- TAB 6: RECOMMENDATIONS -->
+          <section id="tab-recommendations" class="tab-pane">
+            <div class="card">
+              <div class="card-header">
+                <div>
+                  <h3 class="card-title">Smart Business Recommendations</h3>
+                  <div class="card-desc">Rule-based actionable alerts derived from sales velocity, margin health, and projected demand</div>
+                </div>
+              </div>
+              <div id="rec-list-container">
+                <!-- Populated via JS -->
+              </div>
+            </div>
+          </section>
+
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Toast Notifications Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Application Scripts -->
+  <script src="js/dataEngine.js"></script>
+  <script src="js/analyticsEngine.js"></script>
+  <script src="js/forecastingEngine.js"></script>
+  <script src="js/anomalyEngine.js"></script>
+  <script src="js/explainabilityEngine.js"></script>
+  <script src="js/recommendationsEngine.js"></script>
+  <script src="js/ocrEngine.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

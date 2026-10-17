@@ -7,18 +7,21 @@ Migration adds columns that may be missing from older schema versions.
 
 import sqlite3
 import os
+import tempfile
 import pandas as pd
 
-DB_PATH = os.path.join(
+# Use /tmp/ on Streamlit Cloud (read-only filesystem), local path otherwise
+_local_path = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     "data", "sales.db",
 )
+_cloud = not os.access(os.path.dirname(_local_path) or ".", os.W_OK)
+DB_PATH = os.path.join(tempfile.gettempdir(), "sales.db") if _cloud else _local_path
 
 
 def _get_connection():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.execute("PRAGMA journal_mode=WAL")
+    conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     return conn
 
 

@@ -1,4 +1,4 @@
 @echo off
-cd /d "d:\New folder"
+cd /d "%~dp0"
 streamlit run app.py
 pause

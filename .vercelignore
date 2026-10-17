@@ -1,0 +1,11 @@
+app.py
+requirements.txt
+.venv/
+.streamlit/
+db/
+utils/
+data/*.db
+launch.bat
+__pycache__/
+*.pyc
+git

@@ -1,51 +1,61 @@
 # SalesCast Pro 📈
 
-AI-powered sales forecasting, anomaly detection, and business intelligence — all from a simple CSV upload.
+AI-powered sales forecasting, anomaly detection, receipt OCR, and business intelligence — optimized for instant deployment on **Vercel** and local execution with **Streamlit**.
 
-Built with Python · Streamlit · Prophet · XGBoost · SHAP · EasyOCR · SQLite
+Built with **JavaScript · Plotly.js · Tesseract OCR · CSS Design System** (Vercel) + **Python · Streamlit · Prophet · XGBoost · EasyOCR** (Local)
+
+---
+
+## ⚡ Live Vercel Deployment (1-Click)
+
+This repository is pre-configured with [vercel.json](file:///d:/SalesCast_2/vercel.json) and [.vercelignore](file:///d:/SalesCast_2/.vercelignore) for native, high-speed static deployment on Vercel:
+
+1. Push your repository to GitHub:
+   ```bash
+   git add .
+   git commit -m "Configure SalesCast Pro for Vercel deployment"
+   git push origin main
+   ```
+2. Go to **[vercel.com/new](https://vercel.com/new)**.
+3. Import your GitHub repository (`salescast-pro`).
+4. Click **Deploy**!
+   - Build completes in ~1 second with zero dependency bottlenecks.
+   - Live URL: `https://your-project.vercel.app`
 
 ---
 
 ## ✨ Features
 
-| # | Feature | Description |
-|---|---------|-------------|
-| 1 | **CSV Upload + Auto-Cleaning** | Auto-detects date & sales columns, handles missing values, deduplicates |
-| 2 | **Dashboard** | Revenue trend, KPI cards, product breakdown, auto-generated insights |
-| 3 | **Forecasting** | Prophet-based 1–30 day forecast with confidence intervals |
-| 4 | **Anomaly Detection** | IQR-based spike/drop detection with plain-English explanations |
-| 5 | **Bill OCR** | Upload a receipt photo → extract items via EasyOCR → add to database |
-| 6 | **Explainability** | SHAP feature importance showing what drives each prediction |
-| 7 | **Recommendations** | Restock alerts, slow-mover flags, trend & forecast insights |
+| # | Feature | Description | Engine |
+|---|---------|-------------|--------|
+| 1 | **CSV Upload + Auto-Cleaning** | Auto-detects date & sales columns, handles missing values, deduplicates | `dataEngine.js` / `cleaning.py` |
+| 2 | **Interactive Dashboard** | Revenue trend, KPI cards, product & category breakdown, auto-generated insights | `analyticsEngine.js` / Plotly |
+| 3 | **Forecasting** | Prophet-style additive model with trend, weekly/yearly Fourier seasonality, and 95% confidence bounds | `forecastingEngine.js` / Prophet |
+| 4 | **Anomaly Detection** | Statistical IQR spike/drop detection with plain-English diagnostic explanations | `anomalyEngine.js` |
+| 5 | **Bill OCR** | Upload a receipt photo → extract merchant, date, and line items → add to sales database | `ocrEngine.js` / Tesseract |
+| 6 | **Explainability** | Evaluates 12 temporal, momentum, and lag features to determine what drives your sales | `explainabilityEngine.js` / SHAP |
+| 7 | **Recommendations** | Restock alerts, slow-mover warnings, weekend/weekday imbalances, margin health | `recommendationsEngine.js` |
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Local Development
 
-### 1. Clone the repo
+### Option A: Open directly in Browser (Zero Install)
+Double click [index.html](file:///d:/SalesCast_2/index.html) or start any local server:
 ```bash
-git clone https://github.com/YOUR_USERNAME/salescast-pro.git
-cd salescast-pro
+python -m http.server 3000
 ```
+Open `http://localhost:3000`.
 
-### 2. Create a virtual environment (recommended)
+### Option B: Run Streamlit (Python)
+Double-click [launch.bat](file:///d:/SalesCast_2/launch.bat) or run:
 ```bash
-python -m venv venv
-venv\Scripts\activate    # Windows
-# source venv/bin/activate  # macOS/Linux
-```
-
-### 3. Install dependencies
-```bash
+python -m venv .venv
+.venv\Scripts\activate
 pip install -r requirements.txt
-```
-
-### 4. Run the app
-```bash
 streamlit run app.py
 ```
-
-The app opens at `http://localhost:8501`. Click **🎲 Generate Sample Data** in the sidebar to explore all features instantly.
+Open `http://localhost:8501`.
 
 ---
 
@@ -53,49 +63,30 @@ The app opens at `http://localhost:8501`. Click **🎲 Generate Sample Data** in
 
 ```
 salescast-pro/
-├── app.py                    # Main Streamlit app (entry point)
+├── index.html                # Vercel entry point (Full SPA Dashboard)
+├── vercel.json               # Vercel configuration
+├── .vercelignore             # Prevents serverless entry point collisions
+├── css/
+│   └── style.css             # GitHub Dark glassmorphism design system
+├── js/
+│   ├── app.js                # UI state & tab controller
+│   ├── dataEngine.js         # CSV cleaning & 365-day realistic generator
+│   ├── analyticsEngine.js    # KPIs, summaries & Plotly charts
+│   ├── forecastingEngine.js  # Additive time-series forecasting model
+│   ├── anomalyEngine.js      # IQR anomaly detection & diagnostics
+│   ├── explainabilityEngine.js # 12-feature drivers analysis
+│   ├── recommendationsEngine.js # Business rules engine
+│   └── ocrEngine.js          # Receipt OCR scanner & parser
+├── assets/
+│   └── sample_receipt.jpg    # Verified sample receipt for instant testing
+├── app.py                    # Streamlit application
 ├── requirements.txt          # Python dependencies
-├── .streamlit/
-│   └── config.toml           # Dark theme configuration
-├── db/
-│   ├── __init__.py
-│   └── database.py           # SQLite CRUD helpers
-├── utils/
-│   ├── __init__.py
-│   ├── cleaning.py           # Column auto-detection + data cleaning
-│   ├── dashboard.py          # KPIs, charts, auto-summary
-│   ├── forecasting.py        # Prophet forecasting
-│   ├── anomaly.py            # IQR anomaly detection
-│   ├── ocr_utils.py          # EasyOCR receipt extraction
-│   ├── explainability.py     # XGBoost + SHAP analysis
-│   ├── recommendations.py    # Rule-based business alerts
-│   └── styles.py             # CSS + Plotly theme constants
-├── data/
-│   └── .gitkeep              # SQLite DB is created here at runtime
-└── .gitignore
+├── launch.bat                # 1-click local Streamlit runner
+├── db/                       # SQLite data layer for Python
+└── utils/                    # Python modules for Streamlit
 ```
 
 ---
 
-## 🧠 Key Design Decisions
-
-- **Auto-detection over hardcoding** — The app scores each CSV column with heuristics (parse success rate, keyword matching) instead of requiring specific column names.
-- **SQLite for persistence** — Zero-config, file-based database that survives Streamlit reruns. Gives a real "data layer" to talk about in interviews.
-- **Prophet for forecasting** — Handles seasonality, trends, and missing data out of the box. Minimal tuning needed for a demo.
-- **XGBoost + SHAP for explainability** — Since Prophet doesn't expose features SHAP can consume, we engineer 12 time-based features and train XGBoost as an interpretable proxy model.
-- **Rule-based recommendations** — Transparent logic (if velocity > X → restock) that's easy to debug and explain.
-
----
-
-## ☁️ Deploy to Streamlit Cloud
-
-1. Push this repo to GitHub
-2. Go to [share.streamlit.io](https://share.streamlit.io)
-3. Connect your repo → set `app.py` as the entry point
-4. Deploy!
-
----
-
 ## 📄 License
-
 MIT
